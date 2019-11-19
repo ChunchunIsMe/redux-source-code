@@ -28,3 +28,126 @@ a.split('.') // ['1','2','3','4','5']
 a.split('.',2)  // ['1','2']
 ```
 5. Array.prototype.join() 这个没什么好说的只允许一个参数用来分割数组的每个元素。并将其生成字符串返回。
+
+### isPlainObject.js
+这段代码也很好理解，其实就是用来判断对象是否是简单对象，简单对象就是只用new Object()或者字面量方式创建出来的对象，也就是原型是Object.prototype。
+
+先判断obj是不是对象类型，然后 proto 到最后一定会变成 Object.prototype 然后如果 `obj.__proto__ === Object.prototype`那么则返回true。
+
+总结一下用到的方法
+1. typeof
+
+typeof 是一个操作符，运算符后接操作数返回其类型
+
+规则
+
+|类型|结果|
+|:---|:--:|
+|Undefined|"undefined"|
+|Null|"object"|
+|Boolean|"boolean"|
+|Number|"number"|
+|BigInt|"bigint"|
+|String|"string"|
+|Symbol|"object"|
+|宿主对象|取决于具体实现|
+|Function对象|"function"|
+|其他任何对象|"object"|
+
+
+附加信息
+
+null
+```
+// JavaScript 诞生以来便如此
+typeof null === 'object'
+```
+在 JavaScript 最初的实现中，JavaScript 中的值是由一个表示类型的标签和实际数据值表示的。对象的类型标签是0.由于null代表的是空值指针(大多数平台下值为0x00)，因此，null的类型标签是0，typeof null 也因此返回'object'.
+
+使用new
+```
+// 除了 Function 外的所有构造函数的类型都是 'object'
+var str = new String('String');
+var str1 = String(12345);
+var func = new Function();
+
+typeof str; // 返回'object'
+typeof str1; // 返回'string'
+typeof func; // 返回'function'
+```
+语法中的括号
+```
+var num = 1;
+
+typeof num + ' hello'; // 'number hellow'
+typeof (num + ' hello'); // 'string'
+```
+正则表达式
+```
+typeof /s/ // 'object' ECMA标准
+```
+错误
+```
+// 当 typeof 的操作符是未定义 的值会返回 undefined 但是操作符是在typeof后使用 let 或者 const 定义的变量就会报错，因为暂时性死区
+typeof undeclar; // undefined;
+typeof str; // Uncaught ReferenceError
+const str = 'str';
+```
+例外
+```
+typeof document.all // undefined
+
+// 当前浏览器都是这么实现的但是这并不是ECMA标准
+```
+2. BigInt
+由于typeof中看到了 BigInt 所以带出
+
+原始数据类型
+
+原始数据类型 BigInt 他是通过在整数末尾附加 n 或通过构造函数来创建的
+
+通过使用常量`Number.MAX_SAFE_INTEGER`,可以获得数字递增的最安全的值，通过引入BigInt，你可以操作超过`Number.MAX_SAFE_INTEGER`的数字。
+
+```
+// Number.MAX_SAFE_INTEGER === 9007199254740991
+const x = 2n ** 53n;
+// 9007199254740992n
+const y = x + 1n;
+// 9007199254740993n
+```
+其他的行为皆和number一致,但是BigInt不能和数字互换操作，否则会抛出TypeofError
+
+BigInt 是一种内置对象,不能 new。
+
+创建BigInt的方法有 2 种
+```
+var num = 1n
+var num1 = BigInt(1);
+```
+Number 和 BigInt 不是严格相等的，是宽松相等的
+```
+var num = 1;
+var num1 =  1n;
+
+num == num1 // true
+num === num1 // false
+```
+静态方法
+```
+BigInt.asIntN()
+// 将一个BigInt值转换成有符号整数
+BigInt.asUintN()
+// 将一个BIgInt值转换成无符号整数
+
+// 这两个函数都有两个必填参数
+width
+  可储存整数的位数
+bigint
+  要储存在指定位数上的整数
+```
+实例方法有 toLocaleString()/toString()/valueOf() 和number的一致
+3. Number.MAX_SAFE_INTEGER
+上面出现了 Number.MAX_SAFE_INTEGER 所以我们来带出为什么 Number.MAX_SAFE_INTEGER 是 2 ** 52n -1
+
+详见[JavaScript-Number](https://github.com/ChunchunIsMe/redux-source-code/blob/master/Number.md 'JavaScript-Number')
+4. Object.getPrototypeOf()
