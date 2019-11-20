@@ -146,8 +146,14 @@ bigint
   要储存在指定位数上的整数
 ```
 实例方法有 toLocaleString()/toString()/valueOf() 和number的一致
+
 3. Number.MAX_SAFE_INTEGER
 上面出现了 Number.MAX_SAFE_INTEGER 所以我们来带出为什么 Number.MAX_SAFE_INTEGER 是 2 ** 52n -1
 
 详见[JavaScript-Number](https://github.com/ChunchunIsMe/redux-source-code/blob/master/Number.md 'JavaScript-Number')
+
 4. Object.getPrototypeOf()
+
+这个是Object的静态方法，只有一个参数，它会返回指定对象的原型
+
+在 ES5中 如果该方法不是一个对象类型则会报错，但是 ES6 中,参数会被强制转换为一个 Object
