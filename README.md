@@ -148,6 +148,7 @@ bigint
 实例方法有 toLocaleString()/toString()/valueOf() 和number的一致
 
 3. Number.MAX_SAFE_INTEGER
+
 上面出现了 Number.MAX_SAFE_INTEGER 所以我们来带出为什么 Number.MAX_SAFE_INTEGER 是 2 ** 52n -1
 
 详见[JavaScript-Number](https://github.com/ChunchunIsMe/redux-source-code/blob/master/Number.md 'JavaScript-Number')
@@ -157,3 +158,50 @@ bigint
 这个是Object的静态方法，只有一个参数，它会返回指定对象的原型
 
 在 ES5中 如果该方法不是一个对象类型则会报错，但是 ES6 中,参数会被强制转换为一个 Object
+### warning.js
+这里的代码也很简单，就是判断了一下console的兼容性，然后打印了一下错误，并且抛出了一个错误
+
+这里使用的API
+1. console.error 打印一个错误 console 在 IE8 之前不可用
+2. throw 语句
+
+用来抛出一个用户自定义的异常。throw后的语句将不会执行，并且控制将被传递到调用堆栈中的第一个catch块。如果调用者没有catch块，程序将会终止。
+
+如：
+```
+  try {
+    throw 'error';
+  } catch(e) {
+    console.log(e); // expected output: "error"
+  }
+```
+
+如果抛出一个对象那么可以在语句中将它展开
+
+3. Error
+
+语法：
+```
+new Error([message],[filename],[lineNumber]);
+```
+拥有三个可选参数
+
+message: 可选。人类可阅读的错误描述信息。
+
+fileName: 可选。被创建的Error对象的fileName属性值。默认是构造器代码所在的文件名
+
+lineNumber: 可选。被创建的Error对象的lineNumber属性值。默认是调用Error构造器代码所在的文件的行号。
+
+Error可以当做函数使用如 `Error('error')` 他将返回一个Error对象。和new构造的输出相同。
+
+Error类型
+
+|类型|原因|
+|:---|:--:|
+|EvalError|与`eval()`有关|
+|InternalError|JavaScript引擎内部错误，如：‘递归太多’|
+|RangeError|数值变量或参数超出其有效范围|
+|ReferenceError|无效引用|
+|SyntaxError|`eval()`解析代码过程中发生的语法错误|
+|TypeError|变量或参数不属于有效类型|
+|URIError|给`encodeURI()`或`decodeURI()`传递的参数无效|
