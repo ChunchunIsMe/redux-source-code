@@ -205,3 +205,35 @@ Error类型
 |SyntaxError|`eval()`解析代码过程中发生的语法错误|
 |TypeError|变量或参数不属于有效类型|
 |URIError|给`encodeURI()`或`decodeURI()`传递的参数无效|
+
+## 逻辑代码
+### index.js
+index.js是整个redux的入口文件，尾部的export出来的方法就是redux方法了。这里的代码也是比较简单的了。
+
+但是还是有两个需要注意的地方
+
+1. `_DO_NOT_USE_ActionTypes`
+
+这个导出的东西还是比较陌生的，如果不是看源码可能都不知道这个是什么，然后我们可以看到这里引入的就是之前util/actionTypes
+
+2. `isCrushed`函数
+
+这里定义了一个空的函数，然后判断环境变量是否是`development`,判断函数名是否是`string`类型,判断函数名是否是`isCrushed`
+```
+function isCrushed() {}
+
+if (
+  process.env.NODE_ENV !== 'production' &&
+  typeof isCrushed.name === 'string' &&
+  isCrushed.name !== 'isCrushed'
+) {
+  warning(
+    "You are currently using minified code outside of NODE_ENV === 'production'. " +
+      'This means that you are running a slower development build of Redux. ' +
+      'You can use loose-envify (https://github.com/zertosh/loose-envify) for browserify ' +
+      'or DefinePlugin for webpack (http://stackoverflow.com/questions/30030031) ' +
+      'to ensure you have the correct code for your production build.'
+  )
+}
+```
+这个有什么用呢,其实就是用来判断在开发环境是否进行代码压缩，如果进行了代码压缩就进行警告，因为进行代码压缩之后就函数名字就不会是`isCrushed`了
