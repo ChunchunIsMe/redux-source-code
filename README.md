@@ -41,18 +41,18 @@ typeof 是一个操作符，运算符后接操作数返回其类型
 
 规则
 
-|类型|结果|
-|:---|:--:|
-|Undefined|"undefined"|
-|Null|"object"|
-|Boolean|"boolean"|
-|Number|"number"|
-|BigInt|"bigint"|
-|String|"string"|
-|Symbol|"object"|
-|宿主对象|取决于具体实现|
-|Function对象|"function"|
-|其他任何对象|"object"|
+| 类型         |      结果      |
+|:-------------|:--------------:|
+| Undefined    |  "undefined"   |
+| Null         |    "object"    |
+| Boolean      |   "boolean"    |
+| Number       |    "number"    |
+| BigInt       |    "bigint"    |
+| String       |    "string"    |
+| Symbol       |    "object"    |
+| 宿主对象     | 取决于具体实现 |
+| Function对象 |   "function"   |
+| 其他任何对象 |    "object"    |
 
 
 附加信息
@@ -196,17 +196,18 @@ Error可以当做函数使用如 `Error('error')` 他将返回一个Error对象�
 
 Error类型
 
-|类型|原因|
-|:---|:--:|
-|EvalError|与`eval()`有关|
-|InternalError|JavaScript引擎内部错误，如：‘递归太多’|
-|RangeError|数值变量或参数超出其有效范围|
-|ReferenceError|无效引用|
-|SyntaxError|`eval()`解析代码过程中发生的语法错误|
-|TypeError|变量或参数不属于有效类型|
-|URIError|给`encodeURI()`或`decodeURI()`传递的参数无效|
+| 类型           |                     原因                     |
+|:---------------|:--------------------------------------------:|
+| EvalError      |                与`eval()`有关                |
+| InternalError  |    JavaScript引擎内部错误，如：‘递归太多’    |
+| RangeError     |         数值变量或参数超出其有效范围         |
+| ReferenceError |                   无效引用                   |
+| SyntaxError    |     `eval()`解析代码过程中发生的语法错误     |
+| TypeError      |           变量或参数不属于有效类型           |
+| URIError       | 给`encodeURI()`或`decodeURI()`传递的参数无效 |
 
 ## 逻辑代码
+这段的讲解我们先将逻辑讲明白，在所有文件讲解的最后再整理Api
 ### index.js
 index.js是整个redux的入口文件，尾部的export出来的方法就是redux方法了。这里的代码也是比较简单的了。
 
@@ -237,3 +238,204 @@ if (
 }
 ```
 这个有什么用呢,其实就是用来判断在开发环境是否进行代码压缩，如果进行了代码压缩就进行警告，因为进行代码压缩之后就函数名字就不会是`isCrushed`了
+
+### createStore.js
+这里导出了一个函数，函数传入了三个参数，reducer、preloadedState、enhancer
+
+第一个和第二个参数我们经常使用就是 reducer 函数和 preloadedState (state 初始值)
+
+第三个值是用来改造 dispatch 增加中间件的。
+
+我们来开始阅读源码
+
+首先
+```
+if (typeof perloadedState === 'function' && typeof enhancer === 'undefined') {
+  enhancer = preloadedState;
+  preloadedState = undefined
+}
+
+if (typeof enhancer !== 'undefined') {
+  if (typeof enhancer ! == 'function') {
+    throw Error('Expected the enhancer to be a function.')
+  }
+
+  return enhancer(createStore)(reducer, preloadedState)
+}
+
+if (typeof reducer !=== 'function') {
+  throw new Error('Expected the reducer to be a function.')
+}
+```
+这里其实就是对参数进行了判断处理，先是判断如果第二个参数是函数则将它当做第三个参数 enhancer 来看待，然后是判断 enhancer 如果 enhancer存在且是函数那么 返回这个函数调用两次的结果，如果存在且不是函数则报错。然后再判断了reducer是不是函数，如果不是则报错。我们可以从`enhancer(createStore)(reducer, preloadedState)`这句看出 enhancer 的结构应该是
+```
+function enhancer (createStroe) {
+  // ...
+  return function (reducer, preloadedState) {
+    // ...
+    return {
+      dispatch,
+      subscribe,
+      getState,
+      replaceReducer,
+    }
+  }
+}
+```
+我们想想也可以知道肯定在其中改写了一些方法。
+
+然后再定义了一些变量
+```
+let currentReducer = reducer;  // 获取reducer
+let currentState = preloadedState; // 获取初始store
+let currentListeners = [];  // 储存subscribe注册的函数
+let nextListeners = currentListeners; // 储存dispatch时subscribe注册的函数，因为如果只使用一个数组存储在dispatch执行中又注册了函数则会调用新注册的函数。
+let isDispatching = false;  // 判断是否在dispatch，以截断某些在dispatch时不能进行的操作。
+```
+#### ensureCanMutateNextListeners
+这个函数很简单，其实就是拷贝了一下 currentListeners 将此时此刻的监听者函数进行记录
+```
+function ensureCanMutateNextListeners() {
+  if (nextListeners === currentListeners) {
+    nextListeners = currentListeners.slice();
+  }
+}
+```
+#### getState
+这个函数也很简单，它先判断一下是否正在dispatch，如果正在那么报错，这样是为了保持数据的一致性，不然你获取了state之后，你没有进行任何操作state变了，这会让人困惑，然后直接就把currentState返回给你了
+```
+function getState() {
+  if (isDispatching) {
+    throw new Error(
+      'You may not call store.getState() while the reducer is executing. ' +
+          'The reducer has already received the state as an argument. ' +
+          'Pass it down from the top reducer instead of reading it from the store.'
+    );
+  }
+  return currentState;
+}
+```
+#### subscribe
+这个函数也是比较简单
+
+首先做了两个判断，判断传入的参数是否是function，不是则报错，再判断是否正在dispatch如果在则报错不让加入新的监听，这里也是为了做数据一致性
+
+然后他注册了一个状态 isSubscribed 这个有什么用我们往下看
+
+接下来调用 ensureCanMutateNextListeners 给 nextListeners 拷贝赋值再将新的监听加入 nextListeners
+
+然后他返回了一个函数 unsubscribe 这个函数就是用来将监听器移除监听列表的，首先判断 isSubscribed 是否是true 因为如果是false 则已经移除过改函数可以直接返回，因为下面将isSubscribed设置为false了。然后判断是否在dispatch，在则报错，因为这是为了保持数据的一致性，然后调用ensureCanMutateNextListeners，最后找到这个监听并进行删除
+```
+functiong subscribe(listener) {
+  if (typeof listener !== 'function') {
+    throw new Error('Expected the listener to be a function');
+  }
+
+  if (isDispatching) {
+    throw new Error(
+      'You may not call store.subscribe() while the reducer is executing. ' +
+          'If you would like to be notified after the store has been updated, subscribe from a ' +
+          'component and invoke store.getState() in the callback to access the latest state. ' +
+          'See https://redux.js.org/api-reference/store#subscribe(listener) for more details.'
+    );
+  }
+
+  let isSubscribed = true;
+
+  ensureCanMutateNextListeners();
+  nextListeners.push(listener);
+
+  return functiong unsubscribe() {
+    if (!isSubscribed) {
+      return;
+    }
+
+    if (isDispatching) {
+      throw new Error(
+        'You may not unsubscribe from a store listener while the reducer is executing. ' +
+            'See https://redux.js.org/api-reference/store#subscribe(listener) for more details.'
+      );
+    }
+
+    isSubscribed = false;
+
+    ensureCanMutateNextListeners();
+    const index = nextListeners.indexof(listener);
+    nextListeners.splice(index, 1);
+  }  
+}
+```
+#### dispatch
+一开始函数就进行了三次判断
+- 判断是否是简单对象
+- 判断action是否存在
+- 判断当前是否在进行其他dispatch操作
+
+如果有则报错
+
+接下来
+1. 设置dispatch状态为true
+2. 调用传入的reducer并赋值给state
+3. 最后调用完reducer将dispatch状态设置为false
+
+这里代码放在try里的原因是因为害怕传入的reducer报错
+
+然后 将 currentListeners 赋值成 nextListeners 再赋给 listeners
+
+再进行循环调用监听数组中的函数
+```
+function dispatch(action) {
+  if (!isPlainObject(action)) {
+    throw new Error(
+      'Actions must be plain objects. ' +
+          'Use custom middleware for async actions.'
+    );
+  }
+
+  if (typeof action.type === 'undefined') {
+    throw new Error(
+      'Actions may not have an undefined "type" property. ' +
+          'Have you misspelled a constant?'
+    )
+  }
+
+  if (isDispatching) {
+    throw new Error('Reducers may not dispatch actions.');
+  }
+
+  try {
+    isDispatching = true;
+    currentState = currentReducer(currentState, action)
+  } finally {
+    isDispatching = false;
+  }
+
+  const listeners = (currentListeners = nextListeners);
+  for (let i = 0; i < listeners.length; i++) {
+    const listener = listeners[i];
+    listener();
+  }
+
+  return action;
+}
+```
+可能你会有疑问，在dispatch中(currentListeners = nextListeners)，然后又在subscribe对nextListeners进行拷贝操作。这其实就是保持监听的一致性。
+#### replaceReducer
+这个函数其实就是对reducer进行了替换，然后将state进行了重新的初始化
+```
+function replaceReducer(nextReducer) {
+  if (typeof nextReducer !== 'function') {
+    throw new Error('Expected the nextReducer to be a function.');
+  }
+
+  currentReducer = nextReducer;
+  dispath({ type: ActionTypes.REPLACE });
+}
+```
+函数步骤
+1. 先判断是否是函数，不是则报错
+2. 直接替换reducer
+3. 发一个 action 这个type是在util工具库中随机生成的
+4. dispatch之后将state设置为切换后的reducer的default返回的值，即重置state
+#### observable
+这个函数文档中都没说，导出的时候也不知道是导出的时候使用了一个Symbol好像我们好像拿不到，不懂。
