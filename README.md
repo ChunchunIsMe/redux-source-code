@@ -439,3 +439,97 @@ function replaceReducer(nextReducer) {
 4. dispatch之后将state设置为切换后的reducer的default返回的值，即重置state
 #### observable
 这个函数文档中都没说，导出的时候也不知道是导出的时候使用了一个Symbol好像我们好像拿不到，不懂。
+
+#### 初始化
+在最后调用了一下dispatch
+```
+dispatch({ type: ActionTypes.INIT })
+```
+这个 type 也是 util 随机生成的，目的就是将state设置为default返回的值(所以reducer真的一定要设置default啊。。不然就算你设置了初始值也是undefined)
+### combineReducers.js
+我们先不看他定义的函数，因为这些函数都是一些错误处理的函数，我们先直接跳到导出的函数 combineReducers 看到 combineReducers 使用外部定义函数的时候可以先跳过
+#### combineReducers
+我们来看这个函数做了什么
+1. 首先获取传入的reducers对象的所有key，创建 finalReducers 储存最终的 reducer
+2. 对传入reducer的key进行循环，如果是undefined则使用warn报出警告，如果是函数则拷贝到 finalReducers 中
+3. 获取 finalReducers 的所有key，创建一个值，如果是开发环境则给他复制为 {}
+4. 创建一个错误储存值 shapeAssertionError，调用 assertReducerShape 函数并将 finalReducers 传入，如果中途报错则将错误赋值给 shapeAssertionError
+5. 然后返回一个函数，这个函数就是我们最终需要的生成的合成reducer
+
+然后我们来看这个返回的 combination 
+1. 首先标配 reducer 传入的 state 和 action
+2. 如果刚刚检测到的错误存在则抛出这个错误
+3. 如果是开发环境则调用外部函数检测警告并使用util工具库打印出来
+4. 定义一个值来判断state是否改变，并定义一个新的对象表示下个state
+5. 循环finalReducerKeys，在循环中获取循环到的key，并获取这个key下的reducer和state
+6. 调用循环到的reducer，并赋值给 nextStateForKey
+7. 如果返回的是 undefined 则调用外部函数并抛出一个错误
+8. 将结果赋值给nextState的相同key下
+9. 判断state是否进行了改变，循环中如果改变了则 hasChanged 会变成 true
+10. 如果state进行了改变则返回 nextState 如果没有则返回 state
+```
+function combineReducers(reducers) {
+  const reducerKeys = Object.keys(reducers)
+  const finalReducers = {}
+  for (let i = 0; i < reducerKeys.length; i++) {
+    const key = reducerKeys[i]
+
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof reducers[key] === 'undefined') {
+        warning(`No reducer provided for key "${key}"`)
+      }
+    }
+
+    if (typeof reducers[key] === 'function') {
+      finalReducers[key] = reducers[key]
+    }
+  }
+  const finalReducerKeys = Object.keys(finalReducers)
+
+  let unexpectedKeyCache
+  if (process.env.NODE_ENV !== 'production') {
+    unexpectedKeyCache = {}
+  }
+
+  let shapeAssertionError
+  try {
+    assertReducerShape(finalReducers)
+  } catch (e) {
+    shapeAssertionError = e
+  }
+
+  return function combination(state = {}, action) {
+    if (shapeAssertionError) {
+      throw shapeAssertionError
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      const warningMessage = getUnexpectedStateShapeWarningMessage(
+        state,
+        finalReducers,
+        action,
+        unexpectedKeyCache
+      )
+      if (warningMessage) {
+        warning(warningMessage)
+      }
+    }
+
+    let hasChanged = false
+    const nextState = {}
+    for (let i = 0; i < finalReducerKeys.length; i++) {
+      const key = finalReducerKeys[i]
+      const reducer = finalReducers[key]
+      const previousStateForKey = state[key]
+      const nextStateForKey = reducer(previousStateForKey, action)
+      if (typeof nextStateForKey === 'undefined') {
+        const errorMessage = getUndefinedStateErrorMessage(key, action)
+        throw new Error(errorMessage)
+      }
+      nextState[key] = nextStateForKey
+      hasChanged = hasChanged || nextStateForKey !== previousStateForKey
+    }
+    return hasChanged ? nextState : state
+  }
+}
+```
