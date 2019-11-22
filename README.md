@@ -659,3 +659,24 @@ function getUndefinedStateErrorMessage(key, action) {
   )
 }
 ```
+### compose.js
+这个文件的代码非常简单，就是用了一个 reduce 将一个函数的返回值作为另一个函数的参数进行调用，然后返回一个函数去这样调用它，然后返回一个函数去调用他们。接下来我们看代码是怎么做的
+1. 首先对参数进行结构赋值，那么funcs就是所有参数形成的数组
+2. 如果没有进行传参，则返回一个传入什么就返回什么的函数
+3. 如果参数只有一个那么直接返回那个参数
+4. 如果参数大于一个就进行迭代，这个reduce将返回一个函数。
+5. 这个函数调用将会调用传入compose的所有函数，并且将后一个函数的返回值作为前一个的参数，最后那个函数的参数将会是传入compose返回的函数的参数
+6. 这里要注意的是 compose 返回的函数调用后，最先调用的是 compose 参数的最后一个函数,然后从后往前调用
+```
+function compose(...funcs) {
+  if (funcs.length === 0) {
+    return arg => arg
+  }
+
+  if (funcs.length === 1) {
+    return funcs[0];
+  }
+
+  return funcs.reduce((a, b) => (...args) => a(b(...args)));
+}
+```
