@@ -782,3 +782,88 @@ function applyMiddleware(...middlewares) {
   }
 }
 ```
+### bindActionCreators.js
+这个方法的功能其实就是将类似于
+```
+const addTodo = (text) => ({
+  type: 'ADD_TODO',
+  text
+})
+// 或者
+const todoObj = {
+  add: (num) => ({
+    type: 'ADD_NUM',
+    num
+  }),
+  minus: (num) => ({
+    type: 'MINUS_NUM',
+    num
+  }),
+}
+```
+变成
+```
+const addTodo = (text) => dispatch({
+  type: 'ADD_TODO',
+  text
+})
+// 或者
+const todoObj = {
+  add: (num) => dispatch({
+    type: 'ADD_NUM',
+    num
+  }),
+  minus: (num) => dispatch({
+    type: 'MINUS_NUM',
+    num
+  }) 
+}
+```
+说实话没啥用，感觉也没人会用，但是我们还是来看一下他的源码
+#### bindActionCreator
+这个算是主要功能实现的函数了
+
+1. 首先在文件开头就定义了一个 bindActionCreator 函数函数接受一个函数和dispatch
+2. 然后返回一个函数这个函数返回dispatch结果，dispatch参数就是 actionCreator 函数的调用结果，参数就是bindActionCreator返回的函数的参数(然后他还绑定了一下actionCreator调用的this，说实话我觉得没什么必要)
+```
+function bindActionCreator(actionCreator, dispatch) {
+  return function() {
+    return dispatch(actionCreator.apply(this, arguments));
+  }
+}
+```
+#### bindActionCreators
+1. 有两个参数，一个是 actionCreators，另一个是dispatch
+2. 判断如果 actionCreators 是函数直接将 bindActionCreators 的两个参数传入 bindActionCreator 调用后返回
+3. 如果 actionCreators 不是 object 类型直接报错,这里再判断一遍 null 是因为 typeof null === ’object‘
+4. 获取所有 actionCreators 的 key 赋值给 keys 并创建一个 boundActionCreators 空对象
+5. 循环获取的 keys 然后获取到 actionCreators 的 key 下的值，如果是函数则将其传入 bindActionCreator 并将 bindActionCreator 的返回值设置给 boundActionCreators 对象的相同 key 下
+6. 循环过后返回 boundActionCreators
+```
+function bindActionCreators(actionCreators, dispatch) {
+  if (typeof actionCreators === 'function') {
+    return bindActionCreator(actionCreators, dispatch);
+  }
+
+  if (typeof actionCreators !== 'object' || actionCreators === null) {
+    throw new Error(
+      `bindActionCreators expected an object or a function, instead received ${
+        actionCreators === null ? 'null' : typeof actionCreators
+      }. ` +
+        `Did you write "import ActionCreators from" instead of "import * as ActionCreators from"?`
+    )
+  }
+
+  const keys = Object.keys(actionCreators);
+  const boundActionCreators = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const actionCreator = actionCreators[key];
+    if (typeof actionCreator === 'function') {
+      boundActionCreators[key] = bindActionCreator(actionCreator, dispatch)
+    }
+  }
+
+  return boundActionCreators;
+}
+```
