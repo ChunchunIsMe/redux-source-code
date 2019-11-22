@@ -680,3 +680,105 @@ function compose(...funcs) {
   return funcs.reduce((a, b) => (...args) => a(b(...args)));
 }
 ```
+### applyMiddleware.js
+这个js文件的代码量也非常少，但是需要配合 createStroe 中的代码来配合理解。
+
+我们一般使用 applyMiddleware 的时候会调用它并且将它的返回值作为 createStore 的第三个参数进行使用，这样我们就可以使用到中间件啦
+
+我们是否记得在 createStore 中如果存在第三个参数会怎么处理？让我们来看一下
+```
+if (typeof enhancer !== 'undefined') {
+  if (typeof enhancer !== 'function') {
+    throw new Error('Expected the enhancer to be a function.')
+  }
+
+  return enhancer(createStore)(reducer, preloadedState)
+}
+```
+它直接将第三个参数调用两次后返回了，第一此调用参数传入的是createStroe，第二次调用传入的是reducer、preloadedState即传入createStroe的第一个和第二个参数
+
+我们再来看 applyMiddleWare 这个函数，它的返回值刚好和上面处理第三个参数需要的函数完全契合，然后我们来解读 applyMiddleWare 函数
+#### applyMiddleware
+我们可以通过 redux-thunk 这个中间件作为例子辅助理解这段代码(说实话 redux-thunk 的源码还真是短)
+```
+// redux-thunk
+function createThunkMiddleware(extraArgument) {
+  return ({ dispatch, getState }) => next => action => {
+    if (typeof action === 'function') {
+      return action(dispatch, getState, extraArgunmen);
+    }
+
+    return next(action);
+  }
+}
+
+const thunk = createThunkMiddleware()
+thunk.withExtraArgument = createThunkMiddleware;
+
+export default thunk;
+```
+redux-thunk 传入 applyMiddleware 后然后被 createStore 调用步骤：
+1. 首先调用传入redux-thunk的applyMiddleWare获取返回值
+```
+const middleware = applyMiddleware(thunk);
+```
+2. 传入 createStroe 的第三个参数进行处理,对 middleware 进行两次调用
+3. 让我们来看applyMiddleware返回函数返回的函数做了什么操作
+4. 首先调用createStore(...args),createStore 就是第三个参数第一次调用时传入的 createStore, ...args 就是第二次调用传入的 reducer和preloadedState,这样就生成了一个新的store
+5. 定义了一个 dispatch 函数调用它的话会抛出一个错误
+6. 定义一个 middlewareAPI 对象拥有属性 getState 给他赋值为stroe.getState，dispatch 给他赋值为一个函数这个函数的参数将会传入刚刚定义的 dispatch 并将其调用后的返回值返回
+7. 对 applyMiddleware 的参数数组进行循环，并将所有参数函数传入 middlewareAPI 调用后返回其返回值并将所有返回值生成 chain 数组，我们这里只有redux-thunk一个函数传入，所以chain是
+```
+// 上面那么多箭头函数写法有点难看懂，我们把它简化了
+const fn = next => {
+  return action => {
+    if (action === 'function') {
+      return action(dispatch, getState, extraArgunmen);
+    }
+    return next(action);
+  }
+}
+
+const chain = [fn]
+```
+8. 传入 chain 调用 compose 然后调用它的返回值传入store.dispatch,这样我们得到的dispath将会是
+```
+dispatch = action => {
+  if (action === 'function') {
+    return action(dispatch, getState, extraArgunmen);
+  }
+  return next(action);
+}
+// 这里的 next 是 store.dispatch 因为chain只有一个函数，如果有多个函数有可能是后一个函数的返回值
+// 第三个参数可以进行忽略，因为导出的thunk都没给createThunkMiddleware赋值
+// dispatch 和 getState 是在生成 chain 的时候就传入了
+// 这里用了两个闭包函数进行缓存变量。。。。
+```
+9. 接下来返回一个对象，对象中的方法就是store的所有方法，唯一不同的就是他重写了dispatch方法
+10. 我们可以看到使用了redux-thunk当调用dispatch传入的是函数时他会把dispatch传入该函数让该函数进行下一步操作，这样如果是一个异步操作的函数我们就可以在回调函数中使用dispatch了，这样就实现了redux的异步了hhh
+```
+function applyMiddleware(...middlewares) {
+  return createStore => (...args) => {
+    const store = createStroe(...args);
+    let dispatch = () => {
+      throw new Error(
+        `Dispatching while constructing your middleware is not allowed. ` +
+          `Other middleware would not be applied to this dispatch.`
+      );
+    }
+
+    const middlewareAPI = {
+      getState: stroe.getState,
+      dispatch: (...args) => dispatch(...args)
+    }
+
+    const chain = middlewares.map(middleware => middleware(middlewareAPI));
+    dispatch = compose(...chain)(stroe.dispatch);
+
+    return {
+      ...stroe,
+      dispatch
+    }
+  }
+}
+```
