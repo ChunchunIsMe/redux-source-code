@@ -469,11 +469,11 @@ dispatch({ type: ActionTypes.INIT })
 10. 如果state进行了改变则返回 nextState 如果没有则返回 state
 ```
 function combineReducers(reducers) {
-  const reducerKeys = Object.keys(reducers)
-  const finalReducers = {}
+  const reducerKyes = Object.keys(reducers);
+  const finalReducers = {};
   for (let i = 0; i < reducerKeys.length; i++) {
-    const key = reducerKeys[i]
-
+    const key = reducerKeys[i];
+    
     if (process.env.NODE_ENV !== 'production') {
       if (typeof reducers[key] === 'undefined') {
         warning(`No reducer provided for key "${key}"`)
@@ -481,26 +481,26 @@ function combineReducers(reducers) {
     }
 
     if (typeof reducers[key] === 'function') {
-      finalReducers[key] = reducers[key]
+      finalReducers[key] = reducers[key];
     }
   }
-  const finalReducerKeys = Object.keys(finalReducers)
+  const finalReducerKeys = Object.keys(finalReducers);
 
-  let unexpectedKeyCache
+  let unexpectedKeyCache;
   if (process.env.NODE_ENV !== 'production') {
-    unexpectedKeyCache = {}
+    unexpectedKeyCache = {};
   }
 
-  let shapeAssertionError
+  let shapeAssertionError;
   try {
-    assertReducerShape(finalReducers)
-  } catch (e) {
-    shapeAssertionError = e
+    assertReducerShape(fianlReducers);
+  } cache (e) {
+    shapeAssertionError = e;
   }
 
   return function combination(state = {}, action) {
     if (shapeAssertionError) {
-      throw shapeAssertionError
+      throw shapeAssertionError;
     }
 
     if (process.env.NODE_ENV !== 'production') {
@@ -509,27 +509,153 @@ function combineReducers(reducers) {
         finalReducers,
         action,
         unexpectedKeyCache
-      )
+      );
+
       if (warningMessage) {
-        warning(warningMessage)
+        warning(warningMessage);
       }
     }
 
-    let hasChanged = false
-    const nextState = {}
+    let hasChanged = false;
+    const nextState = {};
     for (let i = 0; i < finalReducerKeys.length; i++) {
-      const key = finalReducerKeys[i]
-      const reducer = finalReducers[key]
-      const previousStateForKey = state[key]
-      const nextStateForKey = reducer(previousStateForKey, action)
+      const key = finalReducerKeys[i];
+      const reducer = finalReducers[key];
+      const previousStateForKey = state[key];
+      const nextStateForKey = reducer(previouStateForKey, action);
       if (typeof nextStateForKey === 'undefined') {
-        const errorMessage = getUndefinedStateErrorMessage(key, action)
-        throw new Error(errorMessage)
+        const errorMessage = getUndefinedStateErrorMessage(key, action);
+        throw new Error(errorMessage);
       }
-      nextState[key] = nextStateForKey
-      hasChanged = hasChanged || nextStateForKey !== previousStateForKey
+      nextState[key] = nextStateForKey;
+      hasChanged = hasChanged || nextStateForKey !== previousStateForKey;
     }
-    return hasChanged ? nextState : state
+    return hasChanged ? nextState : state;
   }
+}
+```
+#### assertReducerShape
+在代码中第一个运行到的函数就是这个，在源码的143行，它将生成的 finalReducers 传了进去，让我们看看它做了什么
+
+1. 首先获取传入的 reducers 的所有 key 进行循环
+2. 在获取 key 下的 reducer 
+3. 给第一个参数 state 传入 undefined action 传入一个随机生成type
+4. 如果返回值是 undefined 说明 reducer 没有设置 default 抛出错误
+5. 接下来他又随机生成了一个 type 并判断是否是 undefined 如果是则报错
+6. 这样做的原因是再次判断是否设置了 default 因为如果通过了上面的判断没有通过下面的判断的话，是因为传入的 reducer 函数设置了 ActionTypes.INIT 却没有设置 default
+```
+function assertReducerShape(reducers) {
+  Object.keys(reducers).forEach(key => {
+    const reducer = reducers[key];
+    const initialState = reducer(undefined, { type: ActionTypes.INIT });
+
+    if (typeof intialState === 'undefined') {
+      throw new Error(
+         `Reducer "${key}" returned undefined during initialization. ` +
+          `If the state passed to the reducer is undefined, you must ` +
+          `explicitly return the initial state. The initial state may ` +
+          `not be undefined. If you don't want to set a value for this reducer, ` +
+          `you can use null instead of undefined.`
+      )
+    }
+
+    const type = 
+      '@@redux/PROBE_UNKNOWN_ACTION_' +
+      Math.random()
+        .toString(36)
+        .substring(7)
+        .split('')
+        .join('.');
+    if (typeof reducer(undefined, { type }) === 'undefined') {
+      throw new Error(
+        `Reducer "${key}" returned undefined when probed with a random type. ` +
+          `Don't try to handle ${
+            ActionTypes.INIT
+          } or other actions in "redux/*" ` +
+          `namespace. They are considered private. Instead, you must return the ` +
+          `current state for any unknown actions, unless it is undefined, ` +
+          `in which case you must return the initial state, regardless of the ` +
+          `action type. The initial state may not be undefined, but can be null.`
+      )
+    }
+  })
+}
+```
+#### getUnexpectedStateShapeWarningMessage
+第二次执行检测错误的函数是在返回的整合后的reducer中调用的，传入的参数有state,finalReducers,action,unexpectedKeyCache，然后我们来看这个函数
+1. 获取了传入 reducers 对象下的 key 储存到 reducerKeys
+2. 定义一个提示字符串
+3. 如果 reducerKeys 长度为 0 返回一段提示字符串
+4. 如果 state 不是简单对象则返回一段提示字符串
+5. 循环传入state的所有 key 并进行过滤，如果 reducers 对象中没有这个属性且unexpectedKeyCache 中没有这个属性则过滤出来，这里是为了避免多余的state属性。
+6. 再将过滤出来的state keys 数组进行循环，将unexpectedKeyCache下的属性(unexpectedKeys的所有key)设置为true
+7. 如果 action 存在并且 type 是 ActionTypes.REPLACE 那么直接返回
+8. 如果过滤出了多余的 state 属性则将返回一段提示文字提示有多余的 stage 属性
+9. 然后外部如果拿到了字符串则会打印出警告
+```
+function getUnexpectedStateShapeWarningMessage(
+  inputState,
+  reducers,
+  action,
+  unexpectedKeyCache
+) {
+  const reducerKeys = Object.keys(reducers)
+  const argumentName =
+    action && action.type === ActionTypes.INIT
+      ? 'preloadedState argument passed to createStore'
+      : 'previous state received by the reducer'
+
+  if (reducerKeys.length === 0) {
+    return (
+      'Store does not have a valid reducer. Make sure the argument passed ' +
+      'to combineReducers is an object whose values are reducers.'
+    )
+  }
+
+  if (!isPlainObject(inputState)) {
+    return (
+      `The ${argumentName} has unexpected type of "` +
+      {}.toString.call(inputState).match(/\s([a-z|A-Z]+)/)[1] +
+      `". Expected argument to be an object with the following ` +
+      `keys: "${reducerKeys.join('", "')}"`
+    )
+  }
+
+  const unexpectedKeys = Object.keys(inputState).filter(
+    key => !reducers.hasOwnProperty(key) && !unexpectedKeyCache[key]
+  )
+
+  unexpectedKeys.forEach(key => {
+    unexpectedKeyCache[key] = true
+  })
+
+  if (action && action.type === ActionTypes.REPLACE) return
+
+  if (unexpectedKeys.length > 0) {
+    return (
+      `Unexpected ${unexpectedKeys.length > 1 ? 'keys' : 'key'} ` +
+      `"${unexpectedKeys.join('", "')}" found in ${argumentName}. ` +
+      `Expected to find one of the known reducer keys instead: ` +
+      `"${reducerKeys.join('", "')}". Unexpected keys will be ignored.`
+    )
+  }
+}
+```
+#### getUndefinedStateErrorMessage
+最后一个警告函数是在调用整合后的 reducer 中调用的函数中使用的，整合后的 finalReducers 下的方法即是一个 reducer 如果该 reducer 调用时返回的是 undefined 那么将会调用这个函数，并将 reducer 在 finalReducers 中的 key 和 action 传入，接下来让我们看这个函数做了什么
+1. 如果 action 存在则给 actionType 赋值为 action.type,不存在则赋值 action
+2. 然后如果 actionType 存在则赋值 `action "${String(actionType)}"` 不存在则赋值 'an action'
+3. 然后返回一段字符传，在外部进行抛出了这段错误文字
+```
+function getUndefinedStateErrorMessage(key, action) {
+  const actionType = action && action.type;
+  const actionDescription = 
+    (actionType && `action "${String(actionType)}"`) || 'an action';
+  
+  return (
+    `Given ${actionDescription}, reducer "${key}" returned undefined. ` +
+    `To ignore an action, you must explicitly return the previous state. ` +
+    `If you want this reducer to hold no value, you can return null instead of undefined.`
+  )
 }
 ```
