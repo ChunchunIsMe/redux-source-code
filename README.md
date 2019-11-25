@@ -994,7 +994,19 @@ String.prototype.indexOf 用法和 Array.prototype.indexOf 完全一致，只是
 
 参数和`Array.prototype.inedxOf`一致
 
-但是`Array.prototype.includes`可以判断是否存在NaN、undefined 而 `Array.prototype.inedxOf`不行
+但是`Array.prototype.includes`可以判断是否存在NaN 而 `Array.prototype.inedxOf`不行
+
+还有一种情况
+
+```
+var arr = [undefined];
+arr.indexOf(undefined); // 0
+var arr1 = new Array(3); // [empty x 3]
+arr1.indexOf(undefined); // -1
+arr1.inclueds(undefined); // true
+
+好像是因为 new Array 的数组必须要fill
+```
 
 5. Array.prototype.splice
 
