@@ -867,3 +867,281 @@ function bindActionCreators(actionCreators, dispatch) {
   return boundActionCreators;
 }
 ```
+## 逻辑代码API
+### index.js
+1. import
+
+import 语句用于导入由一个模块导出的绑定。无论是否声明了strict mode，导入的模块都运行在严格模式下。在浏览器中，import 语句只能在声明了`type="module"`的script的标签中使用
+
+此外还有一个，类似函数的动态 `import()`，它不需要依赖`type="module"`的script标签。并且返回一个 Promise 对象
+
+用法
+```
+// 1. 导出所有模块的内容
+import * as myModule from '**/**';
+// 2. 导出单个接口
+import { myExport } from '**/**';
+// 3. 导出多个接口
+import { foo, bar } from '**/**';
+// 4. 导出带有别名的接口
+import {
+  reallyReallyLongModuleExportName as shortName
+}
+from '**/**';
+// 5. 导入时重命名多个接口
+import {
+  reallyReallyLongModuleExportName as shortName,
+  anotherLongModuleName as short
+}
+// 6. 仅为副作用而导入一个模块
+import '**/**';
+// 7. 导入默认值
+import default from '**/**';
+// 8. 也可以将 default 语法和命名空间导入一起使用，但是这种用法 default 必须首先声明
+import default, * as myModule from '**/**';
+import default, {foo, bar} from '**/**';
+// 9. 动态import
+import(**/**).then((module) => {
+  // to do
+})
+```
+
+2. export
+
+在创建 JavaScript 模块时，`export`语句用于从模块中导出函数、对象或原始值，以便其他程序可以通过`import`语句使用他们。
+
+无论是否声明，导出的模块都处于严格模式。export 语句不能用在嵌入式脚本中。
+
+用法
+```
+// 1. 使用命名导出
+var a = **;
+var b = **;
+
+export { a, b };
+// 使用默认导出
+export default function cube(x) { return x * x * x; }
+// 模拟重定向
+exprot { default } from './other';
+export * from './other'
+```
+### createStore.js
+1. Array.prototype.slice
+
+slice() 方法返回一个新的对象数组，这一对象是一个由`begin`和`end`决定的原数组的浅拷贝。原始数组不会被改变
+
+参数：(begin, end)这两个参数都是可选的
+
+> begin: 提取起始处的索引，从该索引开始开始提取原数组元素。如果是负数则表示提取原数组的倒数第几个，如果省略begin，则 slice 从索引 0 开始，如果 begin 大于原数组的长度，则会返回空数组。
+
+> end: 提取终止处的索引(从 0 开始)，在该索引处结束提取原数组元素。slice会提取原数组中索引从 begin 到 end 的所有元素。如果是负数，则它表示在原数组的倒数第几个元素结束抽取。如果end被省略或者大于数组的长度，则slice会一直提取到原数组末尾。
+
+> String.prototype.slice 和 Array.prototype.slice 参数一致、用法一致
+
+返回值：被截取的数组
+2. Array.prototype.push
+
+方法将一个或多个元素添加到数组的末尾，并返回该数组的长度
+
+参数：`elementN`被添加到数组末尾的元素
+
+返回值：新的 length 属性值
+
+例子
+```
+// 1. 添加元素到数组
+var arr = [1, 2, 3];
+arr.push(4, 5, 6);
+console.log(arr);// [1, 2, 3, 4, 5, 6];
+// 2. 合并两个数组
+var arr1 = [1, 2, 3];
+var arr2 = [4, 5, 6];
+Array.prototype.push.apply(arr1, arr2);
+console.log(arr);// [1, 2, 3, 4, 5, 6];
+```
+3. call/apply/bind
+
+因为刚刚看例子apply突然楞了一下所以重新复习一下
+
+call/apply/bind:
+```
+// call：直接绑定this为第一个参数并且从第二个参数开始都会传入函数然后调用
+func.call(thisArg, (arg1), (arg2), ...);
+// apply：和call一样只不过传入参数的方式是一个数组
+func.apply(thisArg, ([argunmentsArg])
+// bind: 调用方式和call一致，只不过bind是返回this绑定的函数且不会直接调用该函数
+func.bind(thisArg, (arg1), (arg2), ...);
+```
+4. Array.prototype.inedxOf
+
+方法返回在数组中可以找到一个给定的元素的第一个索引，如果不存在则返回-1
+
+```
+arr.indexOf(searchElement, (formIndex));
+```
+
+参数：
+
+`searchElement`: 要查找的元素
+
+`formIndex`(可选): 开始查找的位置。如果负数就是从倒数位置开始找。
+
+String.prototype.indexOf 用法和 Array.prototype.indexOf 完全一致，只是第二个参数是负数时 String.prototype.indexOf 会当做 0
+
+如果只是为了判断数组是否包含一个指定的值，而不是要 index 使用Array.prototype.includes 更好
+
+`includes` 是 ES6 方法，用来判断一个数组是否包含一个指定的值，有返回true，没有返回false
+
+参数和`Array.prototype.inedxOf`一致
+
+但是`Array.prototype.includes`可以判断是否存在NaN、undefined 而 `Array.prototype.inedxOf`不行
+
+5. Array.prototype.splice
+
+`splice`方法通过删除或替换现有元素或者原地添加新元素来修改数组，并以数组形式返回被修改的内容。此方法会改变原数组
+
+语法
+```
+array.splice(start,(deleteCount), item1, item2, ...);
+```
+
+参数：
+
+`start`：指定修改的开始位置(从0计数)。如果超出了数组长度，则从数组末尾开始添加内容；如果是负值，则从末尾开始的第几位；如果负数的绝对值大于数组长度，则表示开始位置为0
+
+`deleteCount`(可选)：整数，表示要移除的数组元素个数，如果是 0 或者负数则不移除元素, 如果被省略那么start之后的所有元素都会被删除，如果不是number类型会先转换
+
+`item1, item2, item3`(可选): 要添加进数组的元素，从start开始。
+
+返回值：
+
+返回被删除元素组成的数组，如果没有删除则为空，如果只删除一个则返回只包含一个元素的数组。
+### combineReducers.js
+1. Object.keys/Object.values/Object.entries
+
+Object.keys
+
+参数：
+
+  obj 要返回其枚举自身属性的对象
+
+返回值：
+  
+  一个表示给定对象的所有可枚举属性的字符串数组。
+
+Object.values
+
+参数：
+
+  obj 要返回其枚举自身属性的对象
+
+返回值：
+  
+  一个表示给定对象的所有可枚举属性值的数组。
+
+Object.entries
+
+参数：
+
+  obj 要返回其枚举自身属性的对象
+
+返回值：
+  
+  一个表示给定对象的所有可枚举属性值的键值对数组。
+```
+var obj = {a: 1,b: 2};
+Object.keys(obj); // ['a', 'b']
+Object.values(obj); // [1, 2]
+Object.entries(obj); // [['a', 1], ['b', 2]]
+```
+
+### 迭代器
+他们的参数都是(除了reduce)
+
+> callback: 用来测试每个元素的函数，接收三个参数
+
+>> element: 用于测试的当前值
+
+>> index: 用于测试当前当前值的索引
+
+>> array: 调用迭代器的数组
+
+> thisArg(可选): 执行 callback 时使用的 this 值
+
+他们都不会改变原数组
+
+1. Array.prototype.every
+
+  迭代每一个元素，如果每一次都返回truthy值(即转换成Boolean都是true的值)，则返回true，否则false
+
+2. Array.prototype.filter
+
+  迭代每一个元素，返回一个新的、由通过测试的元素组成的数组，遍历到返回truthy值即是通过测试
+
+3. Array.prototype.find 
+
+  迭代数组，如果找到满足测试函数的值就停止迭代，返回第一个满足提供测试函数的元素的值，否则返回undefined
+
+4. Array.prototype.findIndex 
+
+  和find一致只不过返回的是索引不是值，如果没找到是返回 -1
+
+5. Array.prototype.flatMap
+
+  这个和 map 的区别是循环函数返回数组flatMap会将它扁平化
+  ```
+    var arr = [1, 2, 3, 4];
+    arr.map(x => [x + 1]); // [[2], [3], [4], [5]]
+    arr.flatMap(x => [x + 1]); // [2, 3, 4, 5]
+  ```
+
+6. Array.prototype.forEach
+
+  这个方法只是让每个值都执行一次提供的函数
+
+7. Array.prototype.map
+
+  创建一个新数组，其结果是该数组中每个元素都调用提供的函数返回的结果
+
+8. Array.prototype.some
+
+  和every很像但是every是必须所有都通过才返回true这个是只要一个通过就返回true
+
+9. Array.prototype.reduce
+
+  reduce方法对数组中每个元素执行一个提供的reducer函数，将其结果汇总为单个返回值
+
+  参数也和其他的迭代器不太一样
+
+  > callback: 执行数组中每个值的函数，包含四个参数：
+
+  >> accumulator: 累加器累计回调的返回值；它是上次调用回调时返回的累计值，或者 initialValue
+
+  >> currentValue: 数组中正在处理的元素
+
+  >> index: 数组中正在处理的当前元素的索引。如果提供了initialValue，则起始索引为0，否则从索引1开始
+
+  >> array:调用reduce的数组
+
+  > initialValue: 作为第一次调用callback函数时的第一个参数的值。如果没有提供初始值，则将使用数组中的第一个元素。没有初始值的空数组调用reduce将会报错
+
+
+  返回值为函数累计处理的结果
+
+### applyMiddleware
+1. 扩展运算符
+
+可以在函数调用/数组构造时, 将数组表达式或者string在语法层面展开；还可以在构造字面量对象时, 将对象表达式按key-value的方式展开
+
+用法
+```
+var arr1 = [1, 2, 3];
+var arr2 = [...arr1, 4, 5]; // [1, 2, 3, 4, 5]
+
+var obj1 = {a:1};
+var obj2 = {...obj1, b:2}; //{a:1,b:2}
+
+var fun = function (...args) {console.log(args)}
+
+fun(1, 2, 3, 4, 5); // [1, 2, 3, 4, 5]
+```
